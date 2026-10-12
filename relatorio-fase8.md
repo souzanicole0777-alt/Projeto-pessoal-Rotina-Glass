@@ -108,4 +108,4 @@ Diferenças já existentes em relação ao Manual, constatadas por inspeção e 
 
 ## Arquivo de entrega
 
-`rotina-glass-fase8.html` é o aplicativo completo atualizado. O relatório e os testes são arquivos auxiliares e não são necessários para executá-lo. Nenhuma fase futura foi implementada; nenhum envio ao GitHub ou publicação foi realizado.
+`rotina-glass-fase8.html` é o aplicativo completo atualizado. O relatório e os testes são arquivos auxiliares e não são necessários para executá-lo. Nenhuma fase futura foi implementada. O HTML e este relatório foram enviados, com autorização da usuária, ao repositório `souzanicole0777-alt/Projeto-pessoal-Rotina-Glass`, na branch `main`. O envio ao GitHub disponibiliza os arquivos para download; o aplicativo continua local e offline, sem publicação de um site.
