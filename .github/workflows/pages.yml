@@ -22,6 +22,7 @@ concurrency:
 
 jobs:
   publish:
+    name: Publicar e verificar o endereço
     runs-on: ubuntu-latest
     environment:
       name: github-pages
