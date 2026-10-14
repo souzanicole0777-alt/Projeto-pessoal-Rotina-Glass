@@ -35,6 +35,8 @@ O servidor também foi tornado indisponível durante os testes offline, além de
 
 O fluxo `.github/workflows/pages.yml` publica somente a pasta `site/`, por GitHub Pages, e confere o HTML publicado. O Pages precisa estar habilitado no repositório com Source = GitHub Actions. O token automático dos fluxos não tem permissão de administração para habilitar esse recurso inicialmente.
 
+Os arquivos foram enviados ao GitHub no commit `1fe1f2b`. O fluxo [38582382730](https://github.com/souzanicole0777-alt/Projeto-pessoal-Rotina-Glass/actions/runs/38582382730) executou e parou em Configurar GitHub Pages com `Get Pages site failed` / `Not Found`. Portanto, a edição web está preparada e testada, mas o endereço ainda não foi liberado. É necessário selecionar GitHub Actions em [Settings → Pages](https://github.com/souzanicole0777-alt/Projeto-pessoal-Rotina-Glass/settings/pages) e executar novamente o fluxo.
+
 Neste ambiente, o envio de arquivos Git funciona, mas as consultas a `api.github.com` e `souzanicole0777-alt.github.io` receberam bloqueio 403 do proxy de rede. Foram adicionados esses dois destinos ao rascunho da configuração de rede, preservando os destinos predefinidos existentes. Salvar o rascunho não aplica nem publica essa configuração e não comprova que o site esteja disponível.
 
 ## Transferência de dados
