@@ -32,7 +32,7 @@ Para levar alterações de volta ao computador, faça o caminho inverso: exporte
 
 A pasta `site/` é a edição para navegador e Tela de Início. O arquivo `rotina-glass-financas.html` continua sendo a edição única para download e permanece inalterado.
 
-O fluxo `.github/workflows/pages.yml` publica somente `site/` pelo GitHub Pages. O endereço previsto é:
+O fluxo `.github/workflows/pages.yml` publica somente `site/` pelo GitHub Pages. O endereço publicado é:
 
 `https://souzanicole0777-alt.github.io/Projeto-pessoal-Rotina-Glass/`
 
