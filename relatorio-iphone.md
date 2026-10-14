@@ -31,6 +31,8 @@ Base oficial preservada: `rotina-glass-financas.html`, aplicativo 5.7.0 e dados 
 
 O servidor também foi tornado indisponível durante os testes offline, além de desligar a rede do contexto. Não houve erros de JavaScript. Um 404 era esperado na sondagem intencional de URL fora do aplicativo. Os testes não foram executados em um iPhone físico nem no Safari real.
 
+Após a publicação, outras 12 verificações funcionais passaram contra o endereço real em Chromium móvel: instalação e controle do service worker, seis arquivos no cache, manifest/ícones, painel visível, persistência sintética, exportação JSON, nova aba e reinício completo offline. Foram observadas apenas requisições GET da mesma origem, sem corpo de envio e sem erros JavaScript. Esse teste funcional precisou de exceção de certificado no navegador por causa do proxy do ambiente e não comprova a validação TLS do Chromium nem substitui teste no Safari. A validação HTTPS foi feita separadamente, sem desabilitar TLS, pelo curl do fluxo e pelo download/conferência de todos os arquivos via Python.
+
 ## Publicação
 
 O fluxo `.github/workflows/pages.yml` publica somente a pasta `site/`, por GitHub Pages, e confere o HTML publicado. O Pages precisa estar habilitado no repositório com Source = GitHub Actions. O token automático dos fluxos não tem permissão de administração para habilitar esse recurso inicialmente.
