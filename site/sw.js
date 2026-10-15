@@ -1,6 +1,6 @@
 /* Cache exclusivo dos arquivos do aplicativo; dados e backups nunca passam por aqui. */
 'use strict';
-const RELEASE = '4e6749b2d19deacc';
+const RELEASE = '29039bc448dd6543';
 const CACHE_PREFIX = 'rotina-glass-web:' + new URL(self.registration.scope).pathname + ':';
 const CACHE_NAME = CACHE_PREFIX + RELEASE;
 const BASE = new URL('./', self.location.href);

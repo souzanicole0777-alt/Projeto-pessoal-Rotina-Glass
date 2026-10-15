@@ -91,17 +91,26 @@
     body {
       font-family: var(--font-family);
       color: var(--text-main);
-      background: var(--grad-bg-light);
-      background-attachment: fixed;
+      background: none;
       min-height: 100vh;
       overflow-x: hidden;
       transition: background var(--transition-normal);
       -webkit-font-smoothing: antialiased;
     }
 
-    body.dark-mode {
+    /* O mesmo fundo em uma camada fixa evita repintar a página durante a rolagem. */
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -2;
+      pointer-events: none;
+      background: var(--grad-bg-light);
+      transition: background var(--transition-normal);
+    }
+
+    body.dark-mode::after {
       background: var(--grad-bg-dark);
-      background-attachment: fixed;
     }
 
     /* LUZ AMBIENTE EM GLOW SUAVE */
@@ -1920,7 +1929,7 @@
     @media (max-width: 380px) { .fin-history-filters { grid-template-columns: minmax(0, 1fr); } .fin-history-search { grid-column: auto; } }
   </style>
   <!-- Integração web: o aplicativo e a chave de dados continuam os mesmos. -->
-  <meta name="rotina-glass-web-release" content="4e6749b2d19deacc">
+  <meta name="rotina-glass-web-release" content="29039bc448dd6543">
   <meta name="theme-color" content="#7850c8">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -2012,7 +2021,7 @@
 
       <div class="sidebar-footer">
         <div style="font-size: 0.75rem; color: var(--text-muted); text-align: center; font-weight: 500;">
-          Versão 5.7.0
+          Versão 5.7.1
         </div>
       </div>
     </aside>
@@ -2521,7 +2530,7 @@
     const APP_CONFIG = {
       storageKey: 'ROTINA_GLASS_PREMIUM_DATA',
       appIdentifier: 'ROTINA_GLASS_PREMIUM_APP',
-      appVersion: '5.7.0',
+      appVersion: '5.7.1',
       dataVersion: '5.5.0'
     };
 
@@ -2682,6 +2691,7 @@
           while (key <= endKey) {
             const d = clampDate(+key.slice(0, 4), +key.slice(5, 7), sd);
             if (d >= lo && d <= hi) out.push(d);
+            if (key === endKey) break;
             key = addMonthsKey(key, 1);
           }
         } else {
@@ -8788,12 +8798,14 @@ function openEditDisciplineModal(courseId, discId) {
       return list;
     }
 
-    function calAutoEntries(startN, endN) {
+    function calAutoEntries(startN, endN, sparseDates = null, financeCommitments = null) {
+      // Consultas de datas distantes filtram as fontes finitas em uma única passagem.
+      const includesDate = (n, iso) => n !== null && n >= startN && n <= endN && (!sparseDates || sparseDates.has(iso));
       const prefs = sanitizeCalendarPrefs(appData.calendarPrefs);
       const out = [];
       const firstYear = new Date(startN * 86400000).getUTCFullYear();
       const lastYear = new Date(endN * 86400000).getUTCFullYear();
-      for (let y = firstYear; y <= lastYear; y++) {
+      for (let y = firstYear; !sparseDates && y <= lastYear; y++) {
         calHolidaysForYear(y, prefs).forEach(h => {
           if (h.n >= startN && h.n <= endN) out.push({ type: 'holiday', n: h.n, date: tlDaysToIso(h.n), rank: 0, title: h.title, tag: h.tag, color: h.color });
         });
@@ -8806,7 +8818,7 @@ function openEditDisciplineModal(courseId, discId) {
             if (!disc || !Array.isArray(disc.tasks)) return;
             disc.tasks.forEach(task => {
               const n = tlIsoToDays(task && task.dueDate);
-              if (n === null || n < startN || n > endN) return;
+              if (!includesDate(n, task && task.dueDate)) return;
               out.push({
                 type: 'task', n, date: task.dueDate, rank: 2, title: String(task.title || ''), tag: 'Prazo de estudo',
                 origin: `Origem: Estudos → ${String(course.title || '')} › ${String(disc.name || '')}`,
@@ -8823,7 +8835,7 @@ function openEditDisciplineModal(courseId, discId) {
           if (!phase || !Array.isArray(phase.tasks)) return;
           phase.tasks.forEach(task => {
             const n = tlIsoToDays(task && task.dueDate);
-            if (n === null || n < startN || n > endN) return;
+            if (!includesDate(n, task && task.dueDate)) return;
             out.push({
               type: 'task', n, date: task.dueDate, rank: 2, title: String(task.title || ''), tag: 'Prazo do Canadá',
               origin: `Origem: Canadá → Fase ${String(phase.id)}`,
@@ -8838,20 +8850,32 @@ function openEditDisciplineModal(courseId, discId) {
           const f = appData.finance, loIso = tlDaysToIso(startN), hiIso = tlDaysToIso(endN);
           const push = (date, title, tag, view, income, recurrenceId = '', openRecord = null) => out.push({ type: 'task', n: tlIsoToDays(date), date, rank: 3, title, tag, recurrenceId,
             origin: `Origem: Finanças → ${view}`, color: income ? '#059669' : '#e11d48', open: () => { financeMonth = date.slice(0, 7); openFinanceView(view === 'Cartões' ? 'cards' : view === 'Parcelas' ? 'installments' : view === 'Empréstimos' ? 'loans' : 'entries'); if (openRecord) openRecord(); } });
-          const pending = f.transactions.filter(i => i.status === 'pending' && !i.cardId && i.date >= loIso && i.date <= hiIso);
+          const pending = f.transactions.filter(i => i.status === 'pending' && !i.cardId && i.date >= loIso && i.date <= hiIso && (!sparseDates || sparseDates.has(i.date)));
+          const windows = [];
+          if (sparseDates) {
+            [...sparseDates].sort().forEach(iso => {
+              const n = tlIsoToDays(iso), last = windows[windows.length - 1];
+              // Janelas adjacentes evitam consultas repetidas, sem expandir os intervalos vazios.
+              if (last && n === last.endN + 1 && n - last.startN <= 36600) { last.hi = iso; last.endN = n; }
+              else windows.push({ lo: iso, hi: iso, startN: n, endN: n });
+            });
+          } else windows.push({ lo: loIso, hi: hiIso });
           f.recurrences.forEach(rec => {
             const account = f.accounts.find(a => a.id === rec.accountId);
-            const lo = [loIso, rec.startDate, (account && account.initialBalanceDate) || ''].sort().pop();
-            FIN.recurrenceOccurrences(f, rec, lo, hiIso).forEach(i => pending.push(i));
+            const first = [rec.startDate, (account && account.initialBalanceDate) || ''].sort().pop();
+            windows.forEach(window => {
+              const lo = window.lo > first ? window.lo : first;
+              FIN.recurrenceOccurrences(f, rec, lo, window.hi).forEach(i => pending.push(i));
+            });
           });
           pending.forEach(i => push(i.date, `${i.description} (${FIN.brl(i.amountCents)})`, i.kind === 'income' ? 'A receber' : 'Conta a pagar', 'Lançamentos', i.kind === 'income', i.virtual ? i.recurrenceId : '', () => openEntryModal({ mode: i.virtual ? 'edit-this' : 'edit-tx', item: i })));
-          FIN.commitmentItems(f, hiIso).filter(i => i.date >= loIso).forEach(i => push(i.date, `${i.description} (${FIN.brl(i.amountCents)})`, i.type === 'invoice' ? 'Vencimento de fatura' : (i.type === 'loan' ? 'Parcela de empréstimo' : 'Parcela'), i.view === 'cards' ? 'Cartões' : (i.view === 'loans' ? 'Empréstimos' : 'Parcelas'), false));
+          (financeCommitments || FIN.commitmentItems(f, hiIso)).filter(i => i.date >= loIso && i.date <= hiIso && (!sparseDates || sparseDates.has(i.date))).forEach(i => push(i.date, `${i.description} (${FIN.brl(i.amountCents)})`, i.type === 'invoice' ? 'Vencimento de fatura' : (i.type === 'loan' ? 'Parcela de empréstimo' : 'Parcela'), i.view === 'cards' ? 'Cartões' : (i.view === 'loans' ? 'Empréstimos' : 'Parcelas'), false));
         } catch (e) { /* calendário segue sem os vencimentos financeiros */ }
       }
       (Array.isArray(appData.goals) ? appData.goals : []).forEach(goal => {
         if (!goal || typeof goal !== 'object') return;
         const n = tlIsoToDays(goal.deadline);
-        if (n === null || n < startN || n > endN) return;
+        if (!includesDate(n, goal.deadline)) return;
         out.push({
           type: 'task', n, date: goal.deadline, rank: 2, title: String(goal.title || ''), tag: 'Prazo de meta',
           origin: `Origem: Metas → ${String(goal.type || 'Outros')}`,
@@ -8859,20 +8883,23 @@ function openEditDisciplineModal(courseId, discId) {
           open: () => { switchTab('goals'); openGoalModal(goal.id); }
         });
       });
-      if (prefs.autoDocuments) out.push(...documentsCalendarEntries(startN, endN));
-      if (prefs.autoPets) out.push(...petsCalendarEntries(startN, endN));
+      if (prefs.autoDocuments) out.push(...documentsCalendarEntries(startN, endN).filter(entry => !sparseDates || sparseDates.has(entry.date)));
+      if (prefs.autoPets) out.push(...petsCalendarEntries(startN, endN).filter(entry => !sparseDates || sparseDates.has(entry.date)));
       return out;
     }
 
     // Eventos do usuário + feriados + prazos automáticos, na mesma lista ordenada
-    function calendarEntries(startISO, endISO) {
+    function calendarEntries(startISO, endISO, sparseDates = null, financeCommitments = null) {
       const startN = tlIsoToDays(startISO), endN = tlIsoToDays(endISO);
       if (startN === null || endN === null || endN < startN) return [];
-      const events = calendarOccurrences(startISO, endISO).map(o => ({
+      const occurrences = sparseDates
+        ? [...sparseDates].sort().flatMap(date => calendarOccurrences(date, date))
+        : calendarOccurrences(startISO, endISO);
+      const events = occurrences.map(o => ({
         type: 'event', n: o.n, date: o.date, rank: 1, time: o.event.time || '', title: String(o.event.title || ''),
         color: CAL_CAT_COLORS[o.event.category] || CAL_CAT_COLORS['Outros'], occ: o
       }));
-      return [...calAutoEntries(startN, endN), ...events]
+      return [...calAutoEntries(startN, endN, sparseDates, financeCommitments), ...events]
         .sort((a, b) => (a.n - b.n) || (a.rank - b.rank) || String(a.time || '').localeCompare(String(b.time || '')));
     }
 
@@ -8899,13 +8926,16 @@ function openEditDisciplineModal(courseId, discId) {
       (appData.goals || []).forEach(goal => addDate(goal.deadline));
       (appData.documents || []).forEach(doc => addDate(doc.expiryDate));
       (appData.pets || []).forEach(pet => (pet.healthEvents || []).forEach(event => { addDate(event.date); addDate(event.nextDate); }));
+      let futureCommitments = null;
       if (financeReady()) {
         const f = appData.finance;
         f.transactions.forEach(item => addDate(item.date));
         f.recurrences.forEach(item => addDate(item.startDate));
-        FIN.commitmentItems(f, '9999-12-31').forEach(item => addDate(item.date));
+        futureCommitments = FIN.commitmentItems(f, '9999-12-31');
+        futureCommitments.forEach(item => addDate(item.date));
       }
-      [...extraDates].sort().forEach(date => entries.push(...calendarEntries(date, date).filter(entry => entry.type !== 'holiday')));
+      const dates = [...extraDates].sort();
+      if (dates.length) entries.push(...calendarEntries(dates[0], dates[dates.length - 1], extraDates, futureCommitments));
       entries.sort((a, b) => (a.n - b.n) || (a.rank - b.rank) || String(a.time || '').localeCompare(String(b.time || '')));
       const seen = new Set();
       return entries.filter(entry => {
